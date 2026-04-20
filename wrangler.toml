@@ -1,0 +1,4 @@
+name = "image-background-remover"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".next"
+compatibility_date = "2025-01-01"
