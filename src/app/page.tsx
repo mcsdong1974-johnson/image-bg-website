@@ -9,6 +9,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processImage = useCallback(async (file: File) => {
@@ -25,6 +26,7 @@ export default function Home() {
 
     setError(null);
     setLoading(true);
+    setProgress("正在上传并处理...");
 
     // 预览原图
     const reader = new FileReader();
@@ -32,19 +34,26 @@ export default function Home() {
     reader.readAsDataURL(file);
 
     try {
-      const { removeBackground } = await import("@imgly/background-removal");
+      const formData = new FormData();
+      formData.append("image_file", file);
 
-      const blob = await removeBackground(file, {
-        progress: (key, current, total) => {
-          console.log(`处理中: ${current}/${total}`);
-        },
+      const response = await fetch("/api/remove-bg", {
+        method: "POST",
+        body: formData,
       });
 
-      const url = URL.createObjectURL(blob);
-      setResultImage(url);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "处理失败");
+      }
+
+      setResultImage(data.data);
+      setProgress("");
     } catch (err) {
       console.error(err);
-      setError("处理失败，请重试");
+      setError(err instanceof Error ? err.message : "处理失败，请重试");
+      setProgress("");
     } finally {
       setLoading(false);
     }
@@ -81,6 +90,7 @@ export default function Home() {
     setOriginalImage(null);
     setResultImage(null);
     setError(null);
+    setProgress("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -88,7 +98,7 @@ export default function Home() {
     <>
       <Head>
         <title>图片背景移除工具</title>
-        <meta name="description" content="免费在线移除图片背景，无需上传到服务器" />
+        <meta name="description" content="免费在线移除图片背景" />
       </Head>
 
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -98,7 +108,7 @@ export default function Home() {
             🖼️ 图片背景移除工具
           </h1>
           <p className="text-slate-500">
-            免费、快速、安全 — 图片在浏览器中处理，不会上传到任何服务器
+            基于 AI 技术，快速移除图片背景
           </p>
         </header>
 
@@ -165,7 +175,7 @@ export default function Home() {
                     {loading ? (
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                        <p className="text-sm text-slate-400">正在移除背景...</p>
+                        <p className="text-sm text-slate-400">{progress || "正在处理..."}</p>
                       </div>
                     ) : resultImage ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -204,7 +214,7 @@ export default function Home() {
 
         {/* 页脚 */}
         <footer className="text-center text-sm text-slate-400 py-6">
-          <p>图片完全在本地处理，不会离开您的浏览器</p>
+          <p>使用 remove.bg API 提供支持</p>
         </footer>
       </div>
     </>
