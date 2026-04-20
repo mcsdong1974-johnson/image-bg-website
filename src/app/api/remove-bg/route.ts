@@ -34,12 +34,32 @@ export async function POST(request: NextRequest) {
       body: formDataToSend,
     });
 
+    const contentType = response.headers.get("content-type") || "";
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Remove.bg API error:", response.status, errorText);
+      let errorMessage = `API 请求失败: ${response.status}`;
+      
+      if (contentType.includes("application/json")) {
+        const errorData = await response.json();
+        errorMessage = errorData.errors?.[0]?.title || errorMessage;
+      } else {
+        const text = await response.text();
+        console.error("Remove.bg API error (non-JSON):", response.status, text.slice(0, 200));
+      }
+      
       return NextResponse.json(
-        { error: `API 请求失败: ${response.status}` },
+        { error: errorMessage },
         { status: response.status }
+      );
+    }
+
+    // 检查返回类型
+    if (!contentType.includes("image")) {
+      const text = await response.text();
+      console.error("Unexpected response type:", contentType, text.slice(0, 200));
+      return NextResponse.json(
+        { error: "收到意外响应格式，请重试" },
+        { status: 500 }
       );
     }
 
